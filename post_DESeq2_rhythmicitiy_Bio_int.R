@@ -1179,7 +1179,7 @@ if (
       
       query = rhythmic_genes,
       
-      organism = "mmusculus",
+      organism = "hgfemale",
       
       sources = c(
         "GO:BP",

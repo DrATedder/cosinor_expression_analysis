@@ -53,4 +53,66 @@ library(pheatmap)
 | `DESeq2_24h_rhythm_dds.rds`                          | Complete DESeq2 object for later analysis                                       |
 
 
-## 02. 
+## 02. post_DESeq2_rhythmicity_Bio_Int.R
+
+This script does some early analysis focusing on 'biological interpretation' of the genes identified as being rhythmic using `DESeq2_Rhythmic_Gene_expression.R`. Specifically, this analysis focuses on the following:
+
+```bash
+- Rhythmic gene summary
+- Phase distribution
+- Phase bins
+- Amplitude distribution
+- Phase vs amplitude
+- Phase-ordered VST heatmap
+- g:Profiler GO Biological Process enrichment
+- g:Profiler KEGG enrichment
+- Overall enrichment
+- Phase-specific enrichment
+- Diagnostics for recognised/unrecognised gene IDs
+```
+
+### Input file
+```bash
+DESeq2_24h_rhythmic_genes_with_phase_amplitude.csv
+```
+
+### Package prerequisites
+```R
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(readr)
+library(pheatmap)
+library(RColorBrewer)
+library(gprofiler2)
+```
+
+### Model organism
+`g:Profiler` explicitly requires a model organism. Here, we are set to *H. glaber* (`hgfemale`).
+
+### Output files
+
+| Output category                     | File(s)                                        | Explanation                                                                                         |
+| ----------------------------------- | ---------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| **Rhythmic gene summary**           | `rhythmic_gene_summary.csv`                    | Overall number and characteristics of rhythmic genes, including amplitude and peak-phase statistics |
+| **Genes by phase**                  | `rhythmic_genes_by_phase.csv`                  | Number of rhythmic genes peaking in each 4-hour ZT window                                           |
+| **Phase-ordered gene list**         | `rhythmic_genes_final_phase_ordered.csv`       | Complete rhythmic-gene list ordered by peak time                                                    |
+| **Top genes per phase**             | `top_10_rhythmic_genes_per_phase.csv`          | Top 10 rhythmic genes within each phase group                                                       |
+| **Peak-phase distribution**         | `rhythmic_gene_phase_distribution.pdf/png`     | Visual distribution of rhythmic-gene peak times across the 24-h cycle                               |
+| **Phase-bin distribution**          | `rhythmic_genes_by_phase_bin.pdf/png`          | Visual comparison of rhythmic-gene numbers across the six ZT phase bins                             |
+| **Amplitude distribution**          | `rhythmic_gene_amplitude_distribution.pdf/png` | Distribution of rhythmicity amplitudes                                                              |
+| **Phase vs amplitude**              | `rhythmic_phase_vs_amplitude.pdf/png`          | Relationship between peak timing and rhythm amplitude                                               |
+| **VST expression matrix**           | `phase_ordered_rhythmic_gene_VST_matrix.csv`   | VST expression values for rhythmic genes, ordered by peak phase                                     |
+| **Expression heatmap**              | `all_rhythmic_genes_phase_ordered_heatmap.pdf` | Visual confirmation of temporal expression patterns across rhythmic genes                           |
+| **Overall GO enrichment**           | `GO_Biological_Process_enrichment_all.csv`     | All GO Biological Process terms detected among rhythmic genes                                       |
+| **Significant GO enrichment**       | `GO_Biological_Process_enrichment_FDR05.csv`   | GO Biological Processes significantly enriched at **FDR < 0.05**                                    |
+| **Overall KEGG enrichment**         | `KEGG_enrichment_all.csv`                      | All KEGG pathways detected among rhythmic genes                                                     |
+| **Significant KEGG enrichment**     | `KEGG_enrichment_FDR05.csv`                    | KEGG pathways significantly enriched at **FDR < 0.05**                                              |
+| **Overall enrichment plot**         | `gProfiler_overall_enrichment.pdf/png`         | Visual summary of the strongest overall functional-enrichment results                               |
+| **Phase-specific GO enrichment**    | `gProfiler_ZT*_GO_BP_all.csv`                  | GO Biological Processes associated with genes peaking in each phase                                 |
+| **Phase-specific significant GO**   | `gProfiler_ZT*_GO_BP_FDR05.csv`                | Significant GO processes for each phase (**FDR < 0.05**)                                            |
+| **Phase-specific KEGG enrichment**  | `gProfiler_ZT*_KEGG_all.csv`                   | KEGG pathways associated with genes peaking in each phase                                           |
+| **Phase-specific significant KEGG** | `gProfiler_ZT*_KEGG_FDR05.csv`                 | Significant KEGG pathways for each phase (**FDR < 0.05**)                                           |
+| **Phase enrichment summary**        | `gProfiler_phase_enrichment_combined.csv`      | Combined enrichment results across all six circadian phases                                         |
+| **Phase enrichment plots**          | `gProfiler_ZT*_enrichment.pdf/png`             | Visual summaries of significant functional enrichment for each phase                                |
+

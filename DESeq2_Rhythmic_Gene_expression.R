@@ -25,9 +25,11 @@
 # 1. Load packages
 ############################
 
-library(DESeq2)
-library(ggplot2)
-library(pheatmap)
+suppressPackageStartupMessages({
+  library(DESeq2)
+  library(ggplot2)
+  library(pheatmap)
+})
 
 
 ############################
@@ -38,7 +40,7 @@ count_file <- "/home/andrew/NMR_featureCounts_clean.txt"
 
 outdir <- "/home/andrew/DESeq2_rhythm"
 
-# Number of significant genes to plot
+# Maximum number of significant genes to plot
 TOP_N <- 50
 
 
@@ -50,7 +52,19 @@ dir.create(
 
 
 ############################
-# 3. Read featureCounts data
+# 3. Initialize objects
+############################
+
+# These are initialized so that the final summary
+# cannot fail if no genes pass FDR < 0.05.
+
+rhythmic_results <- data.frame()
+
+top_genes <- character(0)
+
+
+############################
+# 4. Read featureCounts data
 ############################
 
 cat("\nReading featureCounts data...\n")
@@ -60,8 +74,10 @@ counts_raw <- read.delim(
   header = TRUE,
   sep = "\t",
   comment.char = "#",
-  check.names = FALSE
+  check.names = FALSE,
+  stringsAsFactors = FALSE
 )
+
 
 cat(
   "Count table dimensions: ",
@@ -74,7 +90,30 @@ cat(
 
 
 ############################
-# 4. Extract count matrix
+# 5. Check featureCounts columns
+############################
+
+if (ncol(counts_raw) < 7) {
+  
+  stop(
+    "The featureCounts file has fewer than 7 columns. ",
+    "Expected Geneid + 5 annotation columns + sample counts."
+  )
+  
+}
+
+
+if (!"Geneid" %in% colnames(counts_raw)) {
+  
+  stop(
+    "Could not find a 'Geneid' column in the featureCounts file."
+  )
+  
+}
+
+
+############################
+# 6. Extract count matrix
 ############################
 
 # featureCounts output:
@@ -89,17 +128,82 @@ count_matrix <- counts_raw[
   drop = FALSE
 ]
 
+
 rownames(count_matrix) <- counts_raw$Geneid
+
+
+# Check for duplicated gene IDs
+
+if (anyDuplicated(rownames(count_matrix)) > 0) {
+  
+  duplicated_genes <- unique(
+    rownames(count_matrix)[
+      duplicated(rownames(count_matrix))
+    ]
+  )
+  
+  stop(
+    "Duplicated Geneid values detected. ",
+    "Please resolve duplicated gene IDs before running DESeq2.\n",
+    "Examples: ",
+    paste(
+      head(duplicated_genes, 10),
+      collapse = ", "
+    )
+  )
+  
+}
+
 
 count_matrix <- as.matrix(
   count_matrix
 )
 
+
+# Convert safely to numeric
+
+mode(count_matrix) <- "numeric"
+
+
+# Check for NA values
+
+if (anyNA(count_matrix)) {
+  
+  stop(
+    "NA values detected in the count matrix."
+  )
+  
+}
+
+
+# Counts must be non-negative
+
+if (any(count_matrix < 0)) {
+  
+  stop(
+    "Negative count values detected."
+  )
+  
+}
+
+
+# Round if necessary
+
+if (any(count_matrix != round(count_matrix))) {
+  
+  warning(
+    "Non-integer counts detected. ",
+    "Counts will be rounded to integers."
+  )
+  
+}
+
+
 storage.mode(count_matrix) <- "integer"
 
 
 ############################
-# 5. Sample metadata
+# 7. Sample metadata
 ############################
 
 sample_info <- data.frame(
@@ -164,19 +268,44 @@ sample_info <- data.frame(
   stringsAsFactors = FALSE
 )
 
+
 rownames(sample_info) <- sample_info$sample
 
 
 ############################
-# 6. Check sample names
+# 8. Check metadata
+############################
+
+if (nrow(sample_info) != 24) {
+  
+  stop(
+    "Expected 24 samples in metadata."
+  )
+  
+}
+
+
+if (anyDuplicated(sample_info$sample)) {
+  
+  stop(
+    "Duplicated sample names detected in metadata."
+  )
+  
+}
+
+
+############################
+# 9. Check sample names
 ############################
 
 cat("\nChecking sample names...\n")
+
 
 missing_from_counts <- setdiff(
   rownames(sample_info),
   colnames(count_matrix)
 )
+
 
 missing_from_metadata <- setdiff(
   colnames(count_matrix),
@@ -195,6 +324,7 @@ if (length(missing_from_counts) > 0) {
   stop(
     "Sample names do not match."
   )
+  
 }
 
 
@@ -209,6 +339,7 @@ if (length(missing_from_metadata) > 0) {
   stop(
     "Sample names do not match."
   )
+  
 }
 
 
@@ -229,11 +360,13 @@ stopifnot(
 )
 
 
-cat("Sample names match successfully.\n")
+cat(
+  "Sample names match successfully.\n"
+)
 
 
 ############################
-# 7. Create harmonic variables
+# 10. Create harmonic variables
 ############################
 
 omega <- 2 * pi / 24
@@ -250,7 +383,7 @@ sample_info$sin24 <- sin(
 
 
 ############################
-# 8. Save metadata
+# 11. Save metadata
 ############################
 
 write.table(
@@ -273,12 +406,13 @@ write.table(
 
 
 ############################
-# 9. Filter low-count genes
+# 12. Filter low-count genes
 ############################
 
 cat(
   "\nFiltering low-count genes...\n"
 )
+
 
 # Keep genes with:
 # >=10 reads in at least 4 samples
@@ -295,12 +429,22 @@ cat(
   sep = ""
 )
 
+
 cat(
   "Genes after filtering: ",
   sum(keep),
   "\n",
   sep = ""
 )
+
+
+if (sum(keep) == 0) {
+  
+  stop(
+    "No genes passed the filtering threshold."
+  )
+  
+}
 
 
 count_matrix_filtered <- count_matrix[
@@ -311,7 +455,7 @@ count_matrix_filtered <- count_matrix[
 
 
 ############################
-# 10. Create DESeqDataSet
+# 13. Create DESeqDataSet
 ############################
 
 dds <- DESeqDataSetFromMatrix(
@@ -325,12 +469,13 @@ dds <- DESeqDataSetFromMatrix(
 
 
 ############################
-# 11. Run DESeq2 LRT
+# 14. Run DESeq2 LRT
 ############################
 
 cat(
   "\nRunning DESeq2 likelihood-ratio test...\n"
 )
+
 
 dds <- DESeq(
   
@@ -343,7 +488,7 @@ dds <- DESeq(
 
 
 ############################
-# 12. Display model
+# 15. Display model
 ############################
 
 cat(
@@ -365,7 +510,63 @@ print(
 
 
 ############################
-# 13. Extract LRT results
+# 16. Identify coefficients
+############################
+
+coef_names <- resultsNames(dds)
+
+
+if (!"cos24" %in% coef_names) {
+  
+  stop(
+    "cos24 coefficient not found in DESeq2 model."
+  )
+  
+}
+
+
+if (!"sin24" %in% coef_names) {
+  
+  stop(
+    "sin24 coefficient not found in DESeq2 model."
+  )
+  
+}
+
+
+# Find the intercept automatically
+
+intercept_name <- coef_names[
+  grepl(
+    "Intercept",
+    coef_names,
+    ignore.case = TRUE
+  )
+]
+
+
+if (length(intercept_name) != 1) {
+  
+  stop(
+    "Could not uniquely identify the DESeq2 intercept coefficient."
+  )
+  
+}
+
+
+intercept_name <- intercept_name[1]
+
+
+cat(
+  "\nIntercept coefficient: ",
+  intercept_name,
+  "\n",
+  sep = ""
+)
+
+
+############################
+# 17. Extract LRT results
 ############################
 
 res <- results(
@@ -373,41 +574,65 @@ res <- results(
 )
 
 
-res <- res[
-  order(res$padj),
+# Convert to data frame
+
+res_df <- as.data.frame(
+  res
+)
+
+
+# Add gene IDs
+
+res_df$gene_id <- rownames(
+  res_df
+)
+
+
+# Rank by adjusted p-value
+
+res_df <- res_df[
+  order(
+    res_df$padj,
+    na.last = TRUE
+  ),
+  ,
+  drop = FALSE
 ]
 
 
 ############################
-# 14. Save ALL results
+# 18. Save ALL results
 ############################
 
 write.csv(
   
-  as.data.frame(res),
+  res_df,
   
   file = file.path(
     outdir,
     "DESeq2_24h_rhythm_all_genes.csv"
-  )
+  ),
+  
+  row.names = TRUE
 )
 
 
 ############################
-# 15. Select significant genes
+# 19. Select significant genes
 ############################
 
-rhythmic <- res[
-  
-  !is.na(res$padj) &
-    
-    res$padj < 0.05,
+rhythmic <- res_df[
+  !is.na(res_df$padj) &
+    res_df$padj < 0.05,
+  ,
+  drop = FALSE
 ]
 
 
 cat(
   "\n============================================\n"
 )
+
 
 cat(
   "FDR < 0.05 rhythmic genes: ",
@@ -416,28 +641,31 @@ cat(
   sep = ""
 )
 
+
 cat(
   "============================================\n"
 )
 
 
 ############################
-# 16. Save FDR < 0.05 results
+# 20. Save FDR < 0.05 results
 ############################
 
 write.csv(
   
-  as.data.frame(rhythmic),
+  rhythmic,
   
   file = file.path(
     outdir,
     "DESeq2_24h_rhythmic_genes_FDR05.csv"
-  )
+  ),
+  
+  row.names = TRUE
 )
 
 
 ############################
-# 17. Extract DESeq2 coefficients
+# 21. Extract DESeq2 coefficients
 ############################
 
 coef_matrix <- coef(
@@ -454,22 +682,6 @@ print(
 )
 
 
-if (!"cos24" %in% colnames(coef_matrix)) {
-  
-  stop(
-    "cos24 coefficient not found."
-  )
-}
-
-
-if (!"sin24" %in% colnames(coef_matrix)) {
-  
-  stop(
-    "sin24 coefficient not found."
-  )
-}
-
-
 beta_cos <- coef_matrix[
   ,
   "cos24"
@@ -482,9 +694,25 @@ beta_sin <- coef_matrix[
 ]
 
 
+gene_intercept_all <- coef_matrix[
+  ,
+  intercept_name
+]
+
+
 ############################
-# 18. Calculate amplitude
+# 22. Calculate amplitude
 ############################
+
+# For:
+#
+# y = intercept +
+#     beta_cos*cos(wt) +
+#     beta_sin*sin(wt)
+#
+# amplitude = sqrt(
+#   beta_cos^2 + beta_sin^2
+# )
 
 amplitude <- sqrt(
   
@@ -495,8 +723,14 @@ amplitude <- sqrt(
 
 
 ############################
-# 19. Calculate peak phase
+# 23. Calculate peak phase
 ############################
+
+# Maximum occurs when:
+#
+# phase = atan2(beta_sin, beta_cos)
+#
+# converted to hours.
 
 phase_radians <- atan2(
   
@@ -514,17 +748,15 @@ phase_hours <- (
 
 
 ############################
-# 20. Create complete rhythm table
+# 24. Create complete rhythm table
 ############################
 
-rhythm_results <- as.data.frame(
-  res
-)
+rhythm_results <- res_df
 
 
 rhythm_results$beta_cos <- beta_cos[
   match(
-    rownames(rhythm_results),
+    rhythm_results$gene_id,
     names(beta_cos)
   )
 ]
@@ -532,7 +764,7 @@ rhythm_results$beta_cos <- beta_cos[
 
 rhythm_results$beta_sin <- beta_sin[
   match(
-    rownames(rhythm_results),
+    rhythm_results$gene_id,
     names(beta_sin)
   )
 ]
@@ -540,7 +772,7 @@ rhythm_results$beta_sin <- beta_sin[
 
 rhythm_results$amplitude <- amplitude[
   match(
-    rownames(rhythm_results),
+    rhythm_results$gene_id,
     names(amplitude)
   )
 ]
@@ -548,19 +780,34 @@ rhythm_results$amplitude <- amplitude[
 
 rhythm_results$peak_ZT <- phase_hours[
   match(
-    rownames(rhythm_results),
+    rhythm_results$gene_id,
     names(phase_hours)
   )
 ]
 
 
+rhythm_results$intercept <- gene_intercept_all[
+  match(
+    rhythm_results$gene_id,
+    names(gene_intercept_all)
+  )
+]
+
+
+# Keep adjusted-p-value ranking
+
 rhythm_results <- rhythm_results[
-  order(rhythm_results$padj),
+  order(
+    rhythm_results$padj,
+    na.last = TRUE
+  ),
+  ,
+  drop = FALSE
 ]
 
 
 ############################
-# 21. Save complete rhythm table
+# 25. Save complete rhythm table
 ############################
 
 write.csv(
@@ -570,27 +817,37 @@ write.csv(
   file = file.path(
     outdir,
     "DESeq2_24h_rhythm_with_phase_amplitude.csv"
-  )
+  ),
+  
+  row.names = TRUE
 )
 
 
 ############################
-# 22. Significant rhythm table
+# 26. Create significant rhythm table
 ############################
 
 rhythmic_results <- rhythm_results[
-  
   !is.na(rhythm_results$padj) &
-    
     rhythmic_results$padj < 0.05,
-  
+  ,
+  drop = FALSE
 ]
 
 
 rhythmic_results <- rhythmic_results[
-  order(rhythmic_results$padj),
+  order(
+    rhythmic_results$padj,
+    na.last = TRUE
+  ),
+  ,
+  drop = FALSE
 ]
 
+
+############################
+# 27. Save significant rhythm table
+############################
 
 write.csv(
   
@@ -599,12 +856,14 @@ write.csv(
   file = file.path(
     outdir,
     "DESeq2_24h_rhythmic_genes_with_phase_amplitude.csv"
-  )
+  ),
+  
+  row.names = TRUE
 )
 
 
 ############################
-# 23. Normalized counts
+# 28. Normalized counts
 ############################
 
 norm_counts <- counts(
@@ -622,12 +881,14 @@ write.csv(
   file = file.path(
     outdir,
     "DESeq2_normalized_counts.csv"
-  )
+  ),
+  
+  row.names = TRUE
 )
 
 
 ############################
-# 24. VST
+# 29. VST
 ############################
 
 cat(
@@ -655,12 +916,14 @@ write.csv(
   file = file.path(
     outdir,
     "DESeq2_VST_expression.csv"
-  )
+  ),
+  
+  row.names = TRUE
 )
 
 
 ############################
-# 25. PCA
+# 30. PCA
 ############################
 
 pca_data <- plotPCA(
@@ -674,7 +937,9 @@ pca_data <- plotPCA(
 
 
 percentVar <- attr(
+  
   pca_data,
+  
   "percentVar"
 )
 
@@ -689,6 +954,7 @@ pca_plot <- ggplot(
     label = name,
     color = factor(ZT)
   )
+  
 ) +
   
   geom_point(
@@ -743,7 +1009,7 @@ ggsave(
 
 
 ############################
-# 26. Sample correlation heatmap
+# 31. Sample correlation heatmap
 ############################
 
 sample_cor <- cor(
@@ -772,18 +1038,24 @@ pheatmap(
   sample_cor,
   
   annotation_col =
-    sample_info[
-      ,
-      "ZT",
-      drop = FALSE
-    ],
+    data.frame(
+      ZT = factor(
+        sample_info$ZT
+      ),
+      row.names = rownames(
+        sample_info
+      )
+    ),
   
   annotation_row =
-    sample_info[
-      ,
-      "ZT",
-      drop = FALSE
-    ],
+    data.frame(
+      ZT = factor(
+        sample_info$ZT
+      ),
+      row.names = rownames(
+        sample_info
+      )
+    ),
   
   main = "Sample correlation"
 )
@@ -793,7 +1065,7 @@ dev.off()
 
 
 ############################
-# 27. MA plot
+# 32. MA plot
 ############################
 
 pdf(
@@ -821,23 +1093,18 @@ dev.off()
 
 
 ############################
-# 28. Top 20 rhythmic gene heatmap
+# 33. Top 20 rhythmic gene heatmap
 ############################
 
-top_heatmap_genes <- rownames(
+if (nrow(rhythmic_results) > 0) {
   
-  rhythmic_results[
+  top_heatmap_genes <- rhythmic_results$gene_id[
     1:min(
       20,
       nrow(rhythmic_results)
-    ),
-    ,
-    drop = FALSE
+    )
   ]
-)
-
-
-if (length(top_heatmap_genes) > 0) {
+  
   
   top_expression <- vsd_matrix[
     
@@ -907,20 +1174,24 @@ if (length(top_heatmap_genes) > 0) {
   
   
   dev.off()
+  
+} else {
+  
+  cat(
+    "\nNo FDR < 0.05 genes available for heatmap.\n"
+  )
+  
 }
 
 
 ############################################################
-# 29. COSINOR PLOTS
-#
-# IMPORTANT:
+# 34. COSINOR PLOTS
 #
 # Only the TOP_N genes from the FDR < 0.05 table
 # are plotted.
 #
-# They are ranked by lowest adjusted p-value.
+# Genes are ranked by lowest adjusted p-value.
 ############################################################
-
 
 cat(
   "\n============================================\n"
@@ -941,11 +1212,15 @@ if (nrow(rhythmic_results) == 0) {
     "\nNo genes passed FDR < 0.05.\n"
   )
   
+  cat(
+    "No cosinor plots will be generated.\n"
+  )
+  
 } else {
   
   
   ##########################################################
-  # 29.1 Select top genes
+  # 34.1 Select top genes
   ##########################################################
   
   top_gene_count <- min(
@@ -956,27 +1231,23 @@ if (nrow(rhythmic_results) == 0) {
   )
   
   
-  top_genes <- rownames(
-    
-    rhythmic_results[
-      1:top_gene_count,
-      ,
-      drop = FALSE
-    ]
-  )
+  top_genes <- rhythmic_results$gene_id[
+    1:top_gene_count
+  ]
   
   
   top_results <- rhythmic_results[
     
-    top_genes,
+    1:top_gene_count,
     
     ,
+    
     drop = FALSE
   ]
   
   
   ##########################################################
-  # 29.2 Save top-gene table
+  # 34.2 Save top-gene table
   ##########################################################
   
   write.csv(
@@ -992,12 +1263,14 @@ if (nrow(rhythmic_results) == 0) {
         TOP_N,
         "_rhythmic_genes_by_FDR.csv"
       )
-    )
+    ),
+    
+    row.names = TRUE
   )
   
   
   ##########################################################
-  # 29.3 Cosinor output directory
+  # 34.3 Cosinor output directory
   ##########################################################
   
   cosinor_dir <- file.path(
@@ -1031,7 +1304,7 @@ if (nrow(rhythmic_results) == 0) {
   
   
   ##########################################################
-  # 29.4 Combined PDF
+  # 34.4 Combined PDF
   ##########################################################
   
   combined_pdf <- file.path(
@@ -1057,26 +1330,7 @@ if (nrow(rhythmic_results) == 0) {
   
   
   ##########################################################
-  # 29.5 Check fitted means
-  ##########################################################
-  
-  if (!"mu" %in% assayNames(dds)) {
-    
-    dev.off()
-    
-    stop(
-      "DESeq2 fitted means ('mu') are not available."
-    )
-  }
-  
-  
-  fitted_mu_matrix <- assays(dds)[[
-    "mu"
-  ]]
-  
-  
-  ##########################################################
-  # 29.6 Loop through top genes
+  # 34.5 Loop through top genes
   ##########################################################
   
   for (gene in top_genes) {
@@ -1096,6 +1350,8 @@ if (nrow(rhythmic_results) == 0) {
     
     gene_counts <- norm_counts[
       gene,
+      ,
+      drop = TRUE
     ]
     
     
@@ -1128,7 +1384,7 @@ if (nrow(rhythmic_results) == 0) {
     
     
     ########################################################
-    # SD
+    # Standard deviation
     ########################################################
     
     sd_data <- aggregate(
@@ -1168,88 +1424,29 @@ if (nrow(rhythmic_results) == 0) {
     ]
     
     
-    ########################################################
-    # DESeq2 fitted means
-    ########################################################
-    
-    fitted_mu <- fitted_mu_matrix[
-      
-      gene,
-      
-      ,
-      
-      drop = TRUE
+    gene_intercept <- gene_intercept_all[
+      gene
     ]
     
     
     ########################################################
-    # Size factors
+    # Check coefficients
     ########################################################
     
-    gene_size_factors <- sizeFactors(
-      dds
-    )
-    
-    
-    ########################################################
-    # Convert fitted counts to normalized expression
-    ########################################################
-    
-    fitted_q <- fitted_mu /
-      gene_size_factors
-    
-    
-    ########################################################
-    # Recover intercept
-    #
-    # This avoids assuming that the coefficient is called
-    # "(Intercept)".
-    ########################################################
-    
-    intercept_estimates <- (
-      
-      log2(
-        pmax(
-          fitted_q,
-          1e-8
-        )
-      )
-      
-      -
-        
-        gene_beta_cos *
-        sample_info$cos24
-      
-      -
-        
-        gene_beta_sin *
-        sample_info$sin24
-    )
-    
-    
-    finite_intercepts <-
-      intercept_estimates[
-        is.finite(
-          intercept_estimates
-        )
-      ]
-    
-    
-    if (length(finite_intercepts) == 0) {
+    if (
+      !is.finite(gene_beta_cos) ||
+      !is.finite(gene_beta_sin) ||
+      !is.finite(gene_intercept)
+    ) {
       
       warning(
-        "Could not calculate intercept for ",
+        "Non-finite coefficient for ",
         gene,
         ". Skipping."
       )
       
       next
     }
-    
-    
-    gene_intercept <- mean(
-      finite_intercepts
-    )
     
     
     ########################################################
@@ -1269,6 +1466,7 @@ if (nrow(rhythmic_results) == 0) {
     prediction_cos <- cos(
       
       omega *
+        
         prediction_ZT
     )
     
@@ -1276,6 +1474,7 @@ if (nrow(rhythmic_results) == 0) {
     prediction_sin <- sin(
       
       omega *
+        
         prediction_ZT
     )
     
@@ -1297,7 +1496,7 @@ if (nrow(rhythmic_results) == 0) {
     
     
     ########################################################
-    # Convert back to normalized expression scale
+    # Convert to normalized-expression scale
     ########################################################
     
     prediction_fit <- 2^(
@@ -1328,9 +1527,9 @@ if (nrow(rhythmic_results) == 0) {
     
     
     gene_padj <- rhythmic_results[
-      gene,
+      rhythmic_results$gene_id == gene,
       "padj"
-    ]
+    ][1]
     
     
     ########################################################
@@ -1345,6 +1544,7 @@ if (nrow(rhythmic_results) == 0) {
         x = ZT,
         y = expression
       )
+      
     ) +
       
       
@@ -1682,11 +1882,12 @@ if (nrow(rhythmic_results) == 0) {
     cosinor_dir,
     "\n"
   )
+  
 }
 
 
 ############################
-# 30. Save DESeq2 object
+# 35. Save DESeq2 object
 ############################
 
 saveRDS(
@@ -1701,7 +1902,7 @@ saveRDS(
 
 
 ############################
-# 31. Final summary
+# 36. Final summary
 ############################
 
 cat(
@@ -1733,15 +1934,12 @@ cat(
 )
 
 
-if (exists("top_genes")) {
-  
-  cat(
-    "Top genes plotted: ",
-    length(top_genes),
-    "\n",
-    sep = ""
-  )
-}
+cat(
+  "Top genes plotted: ",
+  length(top_genes),
+  "\n",
+  sep = ""
+)
 
 
 cat(
@@ -1751,11 +1949,41 @@ cat(
 )
 
 
+############################
+# 37. Print top genes
+############################
+
 if (nrow(rhythmic_results) > 0) {
   
   cat(
     "\nTop rhythmic genes by FDR:\n\n"
   )
+  
+  
+  columns_to_print <- c(
+    
+    "baseMean",
+    
+    "pvalue",
+    
+    "padj",
+    
+    "beta_cos",
+    
+    "beta_sin",
+    
+    "amplitude",
+    
+    "peak_ZT"
+  )
+  
+  
+  # Only use columns that actually exist
+  
+  columns_to_print <- columns_to_print[
+    columns_to_print %in%
+      colnames(rhythmic_results)
+  ]
   
   
   print(
@@ -1767,22 +1995,36 @@ if (nrow(rhythmic_results) > 0) {
         nrow(rhythmic_results)
       ),
       
-      c(
-        "baseMean",
-        "pvalue",
-        "padj",
-        "beta_cos",
-        "beta_sin",
-        "amplitude",
-        "peak_ZT"
-      ),
+      columns_to_print,
       
       drop = FALSE
     ]
   )
+  
+  
+} else {
+  
+  cat(
+    "\nNo genes passed FDR < 0.05.\n"
+  )
+  
 }
 
+
+############################
+# 38. Final message
+############################
 
 cat(
   "\nAnalysis finished successfully.\n"
 )
+
+cat(
+  "Results written to:\n",
+  outdir,
+  "\n"
+)
+
+############################################################
+# END OF SCRIPT
+############################################################

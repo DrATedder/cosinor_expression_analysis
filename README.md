@@ -116,3 +116,52 @@ library(gprofiler2)
 | **Phase enrichment summary**        | `gProfiler_phase_enrichment_combined.csv`      | Combined enrichment results across all six circadian phases                                         |
 | **Phase enrichment plots**          | `gProfiler_ZT*_enrichment.pdf/png`             | Visual summaries of significant functional enrichment for each phase                                |
 
+
+## 03. clock_target_genes.R
+
+Following on from `DESeq2_Rhythmic_Gene_expression.R` (i.e. must be run first), `clock_target_genes.R` pulls out key information about expression and rhythmicity in well known [core mammalian clock genes](https://en.wikipedia.org/wiki/Circadian_clock) (see below).
+
+### Clock genes covered
+
+
+|Target |Geneid|All_matches     |
+|-------|------|----------------|
+|CLOCK  |Clock |Clock           |
+|BMAL1  |Bmal1 |Bmal1           |
+|PER1   |Per1  |Per1            |
+|PER2   |Per2  |Per2            |
+|PER3   |Per3  |Per3            |
+|CRY1   |Cry1  |Cry1            |
+|CRY2   |Cry2  |Cry2            |
+|REV-ERB|Nr1d2 |Nr1d2; Nr1d1    |
+|ROR    |Rorb  |Rorb; Rora; Rorc|
+|DBP    |Dbp   |Dbp             |
+|NFIL3  |Nfil3 |Nfil3           |
+
+### Package prerequisites
+
+```R
+library(ggplot2)
+library(patchwork)
+```
+
+
+### Output files
+
+| File(s)                                      | Format | Explanation                                                                                                                                                                                                             |
+| -------------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `target_gene_matches.csv`                    | CSV    | Maps the 11 target clock genes to matching gene identifiers in the count matrix. Records the first matching `Geneid` and all matches found using the specified aliases. Unmatched genes are recorded as `NA`.            |
+| `target_clock_gene_raw_counts.csv`           | CSV    | Contains the raw, unnormalised read counts for each identified target gene across all samples. Rows are labelled with the target gene names.                                                                             |
+| `target_clock_gene_raw_counts_labelled.csv`  | CSV    | Similar to the raw counts table, but includes both the target gene name and its original `Geneid` as explicit columns.                                                                                                   |
+| `target_clock_gene_raw_counts_long.csv`      | CSV    | Stores raw counts in long format, with one row per gene–sample combination. Includes the target gene name, original gene identifier, sample name and raw count. Useful for downstream plotting and statistical analysis. |
+| `CLOCK_rhythm.pdf`, `BMAL1_rhythm.pdf`, etc. | PDF    | Individual plots showing the normalised expression pattern across Zeitgeber time (ZT) for each identified target gene. Suitable for publication and detailed inspection.                                                 |
+| `CLOCK_rhythm.png`, `BMAL1_rhythm.png`, etc. | PNG    | High-resolution (300 dpi) versions of the individual gene rhythm plots, suitable for presentations, reports and image-based documents.                                                                                   |
+| `Figure1_Core_Clock_Genes.pdf`               | PDF    | Combines the available plots for six core clock genes: CLOCK, BMAL1, PER1, PER2, PER3 and CRY1. Arranged in a two-column layout.                                                                                         |
+| `Figure1_Core_Clock_Genes.png`               | PNG    | High-resolution (300 dpi) version of Figure 1, containing the available core clock gene plots.                                                                                                                           |
+| `Figure2_Additional_Clock_Genes.pdf`         | PDF    | Combines the available plots for five additional clock genes: CRY2, REV-ERB, ROR, DBP and NFIL3. Arranged in a two-column layout.                                                                                        |
+| `Figure2_Additional_Clock_Genes.png`         | PNG    | High-resolution (300 dpi) version of Figure 2, containing the available additional clock gene plots.                                                                                                                     |
+| `target_clock_gene_summary.csv`              | CSV    | Provides a summary of the rhythmic expression statistics for each identified target gene, including the intercept, cosine and sine coefficients, amplitude, peak ZT and FDR-adjusted p-value.                            |
+| `target_matches.rds`                         | RDS    | Saves the complete target gene matching results as an R object for reuse in R without repeating the lookup.                                                                                                              |
+| `target_plots.rds`                           | RDS    | Saves the individual gene plots as a named R list, allowing them to be reloaded and recombined or modified later.                                                                                                        |
+| `target_summary.rds`                         | RDS    | Saves the target gene summary table as an R object for further analysis in R.                                                                                                                                            |
+

@@ -165,3 +165,37 @@ library(patchwork)
 | `target_plots.rds`                           | RDS    | Saves the individual gene plots as a named R list, allowing them to be reloaded and recombined or modified later.                                                                                                        |
 | `target_summary.rds`                         | RDS    | Saves the target gene summary table as an R object for further analysis in R.                                                                                                                                            |
 
+## 0.4. tissue_specific_heatmap.py
+
+This script (**note** you need to actually pull the required genes from your `featureCounts` or equivalent, first), `log₂(count + 1)` normalises the expression data, and produces a simple heatmap to allow visual assessment of expression across samples for key tissue specific gene expression candidates.
+
+### Tissue specific gene expression candidates
+
+```python
+hypothalamic_genes = [
+    "Agrp", "Npy", "Pomc", "Sst", "Sim1", "Avp", "Oxt",
+    "Pdyn", "Ghrh", "Crh", "Pmch", "Kiss1", "Trh",
+    "Otp", "Hcrt", "Cartpt"
+]
+
+# 
+mouse_model_genes = [
+    "Fezf1", "Gal", "Gabrq", "Slc18a2", "Magel2",
+    "Slc6a3", "Gpx3", "Ngb", "Baiap3"
+]
+
+# low or 'negligible' expression in hypothalamus tissue
+negative_marker_genes = [
+    "Alb", "Cpa1", "Krt1", "Apoa1", "Tnnt2",
+    "Krt10", "Slc4a1"
+]
+
+# Non-hypothalamic genes expressed in nearby brain tissue
+nearby_brain_genes = [
+    "Socs6", "Rab37", "Gbx2", "Syt9", "Amotl1",
+    "Vangl1", "Prkcd", "Ptpn3", "Tcf7l2", "Slitrk6",
+    "Plekhg1", "Rgs16", "Ramp3", "Lef1", "Synpo2",
+    "Tnnt1", "Gjc1"
+]
+
+```

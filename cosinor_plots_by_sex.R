@@ -3,17 +3,10 @@
 #
 # Uses outputs from the original DESeq2 analysis.
 #
-# Original script is not modified or rerun.
 #
 # Individual replicate points:
 #   Coloured by gonadal sex (M/F)
 #
-# Error bars:
-#   Mean +/- SD across all 4 replicates at each ZT,
-#   unchanged from the original plotting approach.
-#
-# Mean points:
-#   Original appearance, not coloured by sex.
 #
 # Cosinor curve:
 #   Original pooled DESeq2 model fit.

@@ -1,6 +1,13 @@
 # cosinor_expression_analysis
 A series of (predominantly) R scripts to explore circadian rhythms in time-series transcriptomic sequence data.
 
+## Table of Contents
+
+- [01. DESeq2_Rhythmic_Gene_expression.R](#01-deseq2_rhythmic_gene_expressionr)
+- [02. post_DESeq2_rhythmicity_Bio_Int.R](#02-post_deseq2_rhythmicity_bio_intr)
+- [03. clock_target_genes.R](#03-clock_target_genesr)
+- [04. tissue_specific_heatmap.py](#04-tissue_specific_heatmappy)
+
 ## 01. DESeq2_Rhythmic_Gene_expression.R
 
 A cosinor analytical approach to differential expression analysis using [`DESeq2`](https://bioconductor.org/packages/release/bioc/html/DESeq2.html). 
@@ -165,7 +172,7 @@ library(patchwork)
 | `target_plots.rds`                           | RDS    | Saves the individual gene plots as a named R list, allowing them to be reloaded and recombined or modified later.                                                                                                        |
 | `target_summary.rds`                         | RDS    | Saves the target gene summary table as an R object for further analysis in R.                                                                                                                                            |
 
-## 0.4. tissue_specific_heatmap.py
+## 04. tissue_specific_heatmap.py
 
 This script (**note** you need to actually pull the required genes from your `featureCounts` or equivalent, first), `log₂(count + 1)` normalises the expression data, and produces a simple heatmap to allow visual assessment of expression across samples for key tissue specific gene expression candidates.
 

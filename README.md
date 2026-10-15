@@ -7,6 +7,8 @@ A series of (predominantly) R scripts to explore circadian rhythms in time-serie
 - [02. post_DESeq2_rhythmicity_Bio_Int.R](#02-post_deseq2_rhythmicity_bio_intr)
 - [03. clock_target_genes.R](#03-clock_target_genesr)
 - [04. tissue_specific_heatmap.py](#04-tissue_specific_heatmappy)
+- [05. by_sex_PCA.R](#05-by_sex_pcar)
+- [# 06. PC_loading.R](#06-pc_loadingr)
 
 ## 01. DESeq2_Rhythmic_Gene_expression.R
 
@@ -206,3 +208,30 @@ nearby_brain_genes = [
 ]
 
 ```
+
+## 05. by_sex_PCA.R
+
+Script 01 (`DESeq2_Rhythmic_Gene_expression.R`) already produces a PCA plot grouped by `ZT`, this script, which runs after that analysis, uses additional metadata of gonadal/chromosome sex to group samples.
+
+
+### Output files
+
+| File(s)                                      | Format |
+| -------------------------------------------- | ------ |
+| `PCA_gonadal_sex.pdf`                        | PDF    |
+| `PCA_gonadal_sex.png`                        | png    |
+
+## 06. PC_loading.R
+
+A post-`DESeq2_Rhythmic_Gene_expression.R` script which determines gene loadings for all gene impacting `PC1` and `PC2`, and produces figures for the top 20 (editable) genes.
+
+### Output files
+
+| File(s)                                      | Format |
+| -------------------------------------------- | ------ |
+| `PCA_gene_loadings.csv`                      | CSV    |
+| `PCA_PC1_top_genes.pdf`                      | PDF    |
+| `PCA_PC1_top_genes.csv`                      | CSV    |
+| `PCA_PC2_top_genes.pdf`                      | PDF    |
+| `PCA_PC2_top_genes.csv`                      | CSV    |
+

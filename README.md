@@ -8,7 +8,7 @@ A series of (predominantly) R scripts to explore circadian rhythms in time-serie
 - [03. clock_target_genes.R](#03-clock_target_genesr)
 - [04. tissue_specific_heatmap.py](#04-tissue_specific_heatmappy)
 - [05. by_sex_PCA.R](#05-by_sex_pcar)
-- [# 06. PC_loading.R](#06-pc_loadingr)
+- [06. PC_loading.R](#06-pc_loadingr)
 
 ## 01. DESeq2_Rhythmic_Gene_expression.R
 

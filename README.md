@@ -9,6 +9,7 @@ A series of (predominantly) R scripts to explore circadian rhythms in time-serie
 - [04. tissue_specific_heatmap.py](#04-tissue_specific_heatmappy)
 - [05. by_sex_PCA.R](#05-by_sex_pcar)
 - [06. PC_loading.R](#06-pc_loadingr)
+- [07. extract_and_blast.py](#07-extract_and_blastpy)
 
 ## 01. DESeq2_Rhythmic_Gene_expression.R
 
@@ -234,4 +235,48 @@ A post-`DESeq2_Rhythmic_Gene_expression.R` script which determines gene loadings
 | `PCA_PC1_top_genes.csv`                      | CSV    |
 | `PCA_PC2_top_genes.pdf`                      | PDF    |
 | `PCA_PC2_top_genes.csv`                      | CSV    |
+
+
+## 07. extract_and_blast.py
+
+This script takes one of the `DESeq2_Rhythmic_Gene_expression.R` outputs (specifically, `DESeq2_24h_rhythmic_genes_with_phase_amplitude.csv`), extracts entries where we only have `Ensembl` IDs (rather than gene names), pulls the requisite exon coordinates from the `gtf` file, splices the exons together, and the `BLASTs` the resultant sequences. Essentially, attempting to identify non-annotated genes.
+
+**Note**. This is pretty basic, it's **not** a functional annotation.
+
+### Package prerequisites
+
+```python
+import argparse
+import csv
+import os
+import re
+import subprocess
+
+from collections import defaultdict
+from pyfaidx import Fasta
+```
+
+**Note**. You will also need `ncbi-blast` installed on your system.
+
+### Basic usage
+
+```bash
+python extract_and_blast.py \
+    --results DESeq2_2h_rhythmic_genes_with_phase_amplitude.csv \
+    --id-column gene_id \
+    --name-column gene_name \
+    --gtf GCA_944319715/annotation/Heterocephalus_glaber_female.Naked_mole-rat_maternal.116.gtf \
+    --genome GCA_944319715/genome/GCA_944319715.1.renamed.fna \
+    --output output
+```
+**Note**. Your genome and `gtf` files probably won't be the same as mine...
+
+### Output files
+
+|File(s)                            |Explanation|
+|-----------------------------------|-----------|
+|spliced_transcripts.fasta          |Pre-BLAST spliced exons|
+|transcript_coordinates.csv         |Coordinates file used to pull exons from the genome|
+|missing_gene_ids.txt               |Putative gene ids for each Ensembl ID| 
+|blast_results.tsv                  |BLAST output tables|
 
